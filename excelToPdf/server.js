@@ -1,8 +1,9 @@
 const express=require("express")
 const app=express()
 const path=require("path")
-const { load } = require('@pspdfkit/nodejs');
-const fs = require('node:fs');
+const fs = require('fs');
+const puppeteer = require('puppeteer');
+const ExcelJS = require('exceljs');
 const multer=require("multer");
 const cors=require('cors')
 app.set('view engine', 'ejs');
@@ -37,10 +38,19 @@ console.log(err)
 app.get("/",(req,res)=>{
     res.render("home")
 })
-app.post("/convert",upload.single('file'),(req,res)=>{
+app.post("/convert",upload.single('file'),async (req,res)=>{
 const filePath=req.file.path
+if(filePath!=null || filePath!=undefined)
+{
+ await convertWorkbookToHTML(filePath)
+    .then(async (html)=>{
+      await convertHTMLToPDF(html).then((pdf)=>{
+        fs.writeFileSync("file.pdf",pdf)
+      })
+    })
+    .catch(err => console.error(err));
+}
 const dest=path.join(__dirname, 'pdfs')
-    convertToPDF(filePath,dest)
     return res.json({"mssg":"hello world"})
 
 })
@@ -48,12 +58,39 @@ const dest=path.join(__dirname, 'pdfs')
 app.listen(5000,()=>{
     console.log("server running on port 5000")
 })
-async function convertToPDF(path,dest) {
-	const docx = fs.readFileSync(path);
-	const instance = await load({
-		document: docx,
-	});
-	const buffer = await instance.exportPDF();
-	fs.writeFileSync(dest, Buffer.from(buffer));
-	await instance.close();
+async function convertWorkbookToHTML(filename) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filename);
+
+  let html = '';
+  workbook.eachSheet((worksheet, sheetId) => {
+      html += `<h2>${worksheet.name}</h2>`;
+      html += '<table border="1">';
+      worksheet.eachRow((row, rowNumber) => {
+          html += '<tr>';
+          row.eachCell((cell, colNumber) => {
+              html += `<td>${cell.text}</td>`;
+          });
+          html += '</tr>';
+      });
+      html += '</table>';
+  });
+
+  return html;
+}
+async function convertHTMLToPDF(html) {
+    const browser = await puppeteer.launch();
+    const page = await browser.newPage();
+
+    await page.setContent(html, {
+        waitUntil: 'networkidle0'
+    });
+
+    const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true
+    });
+
+    await browser.close();
+    return pdf;
 }
