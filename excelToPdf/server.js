@@ -40,19 +40,35 @@ app.get("/",(req,res)=>{
 })
 app.post("/convert",upload.single('file'),async (req,res)=>{
 const filePath=req.file.path
+const  filename=req.file.originalname.split(".")[0]
 const dest=path.join(__dirname, 'pdfs')
 if(filePath!=null || filePath!=undefined)
 {
- await convertWorkbookToHTML(filePath)
+  try{
+    await convertWorkbookToHTML(filePath)
     .then(async (html)=>{
       await convertHTMLToPDF(html).then((pdf)=>{
-        fs.writeFileSync("file.pdf",pdf)
+       fs.writeFileSync(`${dest}/${filename}.pdf`,pdf)
+       res.download(`${dest}/${filename}.pdf`,(err)=>{
+        if(err)
+        {
+          throw(err)
+        }
+        // res.status(500).json({"mssg":"error downloading the file"})
+       })
       })
     })
-    .catch(err => console.error(err));
+    .catch(err => console.error(err)); 
+  }
+  catch(err)
+  {
+    console.log(err)
+    // return res.json({"mssg":"upload unsuccessful"})
+  }
+
 }
 
-    return res.json({"mssg":"hello world"})
+
 
 })
 
