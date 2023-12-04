@@ -40,6 +40,7 @@ app.get("/",(req,res)=>{
 })
 app.post("/convert",upload.single('file'),async (req,res)=>{
 const filePath=req.file.path
+const dest=path.join(__dirname, 'pdfs')
 if(filePath!=null || filePath!=undefined)
 {
  await convertWorkbookToHTML(filePath)
@@ -50,7 +51,7 @@ if(filePath!=null || filePath!=undefined)
     })
     .catch(err => console.error(err));
 }
-const dest=path.join(__dirname, 'pdfs')
+
     return res.json({"mssg":"hello world"})
 
 })
@@ -64,7 +65,6 @@ async function convertWorkbookToHTML(filename) {
 
   let html = '';
   workbook.eachSheet((worksheet, sheetId) => {
-      html += `<h2>${worksheet.name}</h2>`;
       html += '<table border="1">';
       worksheet.eachRow((row, rowNumber) => {
           html += '<tr>';
